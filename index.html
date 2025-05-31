@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emissão de Nota Fiscal</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #1e3a8a, #60a5fa);
+      overflow: hidden;
+      position: relative;
+    }
+    .card {
+      background-color: white;
+      border-radius: 1.5rem;
+      padding: 2rem;
+      max-width: 24rem;
+      width: 100%;
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    }
+    .title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+    }
+    .button-primary {
+      width: 100%;
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      text-align: center;
+    }
+    .button-secondary {
+      background-color: #e5e7eb;
+      color: #111827;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      margin-right: 0.5rem;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center relative z-10">
+  <div id="app" class="card relative z-10">
+    <div id="step-1">
+      <div class="title">Bem-vindo!</div>
+      <input type="text" id="clienteInput" oninput="filtrarClientes()" placeholder="Digite o nome do cliente" class="input-field" autocomplete="off">
+      <ul id="sugestoes" class="bg-white border rounded text-sm text-black max-h-40 overflow-y-auto"></ul>
+      <div class="button-primary mt-4" onclick="nextStep()">Próximo</div>
+    </div>
+
+    <div id="step-2" class="hidden">
+      <div class="title">Adicionar Produtos</div>
+      <input type="text" id="produtoInput" oninput="filtrarProdutos()" placeholder="Digite o nome do produto" class="input-field" autocomplete="off">
+      <ul id="sugestoesProdutos" class="bg-white border rounded text-sm text-black max-h-40 overflow-y-auto mb-2"></ul>
+      <input type="number" id="precoProduto" placeholder="Preço" class="input-field">
+      <input type="number" id="qtdProduto" placeholder="Quantidade" class="input-field">
+      <div class="button-primary" onclick="adicionarProduto()">Adicionar Produto</div>
+      <div id="listaProdutos" class="text-sm mt-4"></div>
+      <div class="flex justify-between mt-4">
+        <button onclick="prevStep()" class="button-secondary">Voltar</button>
+        <button onclick="nextStep()" class="button-primary ml-2">Próximo</button>
+      </div>
+    </div>
+
+    <div id="step-3" class="hidden">
+      <div class="title">Confirmar e Enviar</div>
+      <div id="resumo" class="text-sm"></div>
+      <div class="flex justify-between mt-4">
+        <button onclick="prevStep()" class="button-secondary">Voltar</button>
+        <button onclick="enviarNota()" class="button-primary ml-2">Emitir Nota</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let passoAtual = 1;
+    let clienteSelecionado = null;
+    let clientes = [];
+    let produtosDisponiveis = [];
+    const produtosSelecionados = [];
+
+    async function carregarDados() {
+      try {
+        const response = await fetch("https://script.google.com/macros/s/AKfycbyCX-kMR9ysNiYCKQ5j_ULKDpYohYFsqnr9IXiG3HhgvQawFBh-e99uBMPMXRQ2vZ7k/exec?action=carregar");
+        const data = await response.json();
+        clientes = data.clientes;
+        produtosDisponiveis = data.produtos;
+      } catch (error) {
+        alert("Erro ao carregar dados da planilha");
+        console.error(error);
+      }
+    }
+
+    carregarDados();
+
+    function filtrarClientes() {
+      const input = document.getElementById("clienteInput").value.toLowerCase();
+      const sugestoes = document.getElementById("sugestoes");
+      sugestoes.innerHTML = "";
+      if (input.length === 0) return;
+      const filtrados = clientes.filter(c => c.cli_nome.toLowerCase().includes(input));
+      filtrados.forEach(cliente => {
+        const li = document.createElement("li");
+        li.textContent = cliente.cli_nome;
+        li.classList.add("p-2", "hover:bg-blue-100", "cursor-pointer");
+        li.onclick = () => selecionarCliente(cliente);
+        sugestoes.appendChild(li);
+      });
+    }
+
+    function selecionarCliente(cliente) {
+      document.getElementById("clienteInput").value = cliente.cli_nome;
+      clienteSelecionado = cliente;
+      document.getElementById("sugestoes").innerHTML = "";
+    }
+
+    function filtrarProdutos() {
+      const input = document.getElementById("produtoInput").value.toLowerCase();
+      const sugestoes = document.getElementById("sugestoesProdutos");
+      sugestoes.innerHTML = "";
+      if (input.length === 0) return;
+      const filtrados = produtosDisponiveis.filter(p => p.descricao.toLowerCase().includes(input));
+      filtrados.forEach(prod => {
+        const li = document.createElement("li");
+        li.textContent = prod.descricao;
+        li.classList.add("p-2", "hover:bg-blue-100", "cursor-pointer");
+        li.onclick = function() { selecionarProduto(prod); };
+        sugestoes.appendChild(li);
+      });
+    }
+
+    function selecionarProduto(produto) {
+      document.getElementById("produtoInput").value = produto.descricao;
+      document.getElementById("produtoInput").dataset.codigo = produto.codigo;
+      document.getElementById("sugestoesProdutos").innerHTML = "";
+    }
+
+    function adicionarProduto() {
+      const nome = document.getElementById("produtoInput").value;
+      const preco = parseFloat(document.getElementById("precoProduto").value);
+      const qtd = parseInt(document.getElementById("qtdProduto").value);
+      if (!nome || isNaN(preco) || isNaN(qtd) || qtd <= 0) {
+        alert("Preencha corretamente todos os campos do produto.");
+        return;
+      }
+      const codigo = document.getElementById("produtoInput").dataset.codigo || "";
+      produtosSelecionados.push({ nome, preco, qtd, codigo });
+      atualizarListaProdutos();
+      document.getElementById("produtoInput").value = "";
+      document.getElementById("precoProduto").value = "";
+      document.getElementById("qtdProduto").value = "";
+    }
+
+    function atualizarListaProdutos() {
+      const lista = document.getElementById("listaProdutos");
+      lista.innerHTML = "<div class='font-semibold mb-2'>Produtos Adicionados:</div>";
+      let subtotal = 0;
+      produtosSelecionados.forEach(p => {
+        const totalItem = p.qtd * p.preco;
+        subtotal += totalItem;
+        lista.innerHTML += `<div class='mb-1'>${p.qtd} x ${p.nome} (cód: ${p.codigo}) = R$ ${totalItem.toFixed(2)}</div>`;
+      });
+      lista.innerHTML += `<div class='mt-2 font-bold'>Subtotal: R$ ${subtotal.toFixed(2)}</div>`;
+    }
+
+    function nextStep() {
+      if (passoAtual === 1 && !clienteSelecionado) {
+        alert("Por favor, selecione um cliente.");
+        return;
+      }
+      document.getElementById(`step-${passoAtual}`).classList.add("hidden");
+      passoAtual++;
+      document.getElementById(`step-${passoAtual}`).classList.remove("hidden");
+      if (passoAtual === 3) gerarResumo();
+    }
+
+    function prevStep() {
+      document.getElementById(`step-${passoAtual}`).classList.add("hidden");
+      passoAtual--;
+      document.getElementById(`step-${passoAtual}`).classList.remove("hidden");
+    }
+
+    function gerarResumo() {
+      const cliente = clienteSelecionado.cli_nome;
+      const resumoDiv = document.getElementById("resumo");
+      let subtotal = 0;
+      let resumo = `<p><strong>Cliente:</strong> ${cliente}</p><ul class="mt-2">`;
+      produtosSelecionados.forEach(p => {
+        const totalItem = p.qtd * p.preco;
+        subtotal += totalItem;
+        resumo += `<li>${p.qtd} x ${p.nome} (cód: ${p.codigo}) = R$ ${totalItem.toFixed(2)}</li>`;
+      });
+      resumo += `</ul><p class='mt-2 font-bold'>Subtotal: R$ ${subtotal.toFixed(2)}</p>`;
+      resumoDiv.innerHTML = resumo;
+    }
+
+function enviarNota() {
+  const dados = {
+    cliente: clienteSelecionado,
+    produtos: produtosSelecionados.map(p => ({
+      codigo: p.codigo,
+      nome: p.nome,
+      preco: p.preco,
+      qtd: p.qtd,
+      total: (p.preco * p.qtd).toFixed(2)
+    }))
+  };
+
+  console.log("Enviando dados para o App Script...");
+  console.log("Cliente:", clienteSelecionado);
+  console.log("Produtos:", produtosSelecionados);
+
+  fetch("https://script.google.com/macros/s/AKfycbyCX-kMR9ysNiYCKQ5j_ULKDpYohYFsqnr9IXiG3HhgvQawFBh-e99uBMPMXRQ2vZ7k/exec", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(dados)
+  })
+  .then(response => response.text())
+  .then(texto => {
+    alert("Resposta do servidor:\n" + texto);
+    console.log("Resposta completa:", texto);
+  })
+  .catch(erro => {
+    alert("Erro ao enviar nota: " + erro.message);
+    console.error("Erro no fetch:", erro);
+  });
+}
+  </script>
+
+  <div class="pointer-events-none absolute top-0 left-0 w-full h-full -z-10">
+    <div class="absolute bg-gradient-to-br from-indigo-900 via-blue-800 to-indigo-900 rounded-full w-64 h-64 -top-12 -left-12 opacity-30 blur-3xl"></div>
+    <div class="absolute bg-gradient-to-br from-blue-300 via-white to-blue-400 rounded-full w-32 h-32 top-24 right-8 opacity-40 blur-2xl"></div>
+    <div class="absolute bg-gradient-to-br from-blue-700 to-indigo-800 rounded-full w-80 h-80 bottom-16 left-1/3 opacity-20 blur-3xl"></div>
+    <div class="absolute bg-white rounded-full w-24 h-24 bottom-10 right-10 opacity-10 blur-xl"></div>
+  </div>
+</body>
+</html>
