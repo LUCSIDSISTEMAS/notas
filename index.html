@@ -90,7 +90,7 @@
 
   async function carregarDados() {
     try {
-      const response = await fetch("https://script.google.com/macros/s/AKfycbyCX-kMR9ysNiYCKQ5j_ULKDpYohYFsqnr9IXiG3HhgvQawFBh-e99uBMPMXRQ2vZ7k/exec?action=carregar");
+      const response = await fetch("https://script.google.com/macros/s/AKfycbyXhQLApRqn-5YULXsuUERgB34pRzbC5Ks3nCAUu6Xda39QcTaWz1SMKw6jnxpcez71/exec?action=carregar");
       const data = await response.json();
       clientes = data.clientes;
       produtosDisponiveis = data.produtos;
@@ -144,21 +144,36 @@
     document.getElementById("sugestoesProdutos").innerHTML = "";
   }
 
-  function adicionarProduto() {
-    const nome = document.getElementById("produtoInput").value;
-    const preco = parseFloat(document.getElementById("precoProduto").value);
-    const qtd = parseInt(document.getElementById("qtdProduto").value);
-    if (!nome || isNaN(preco) || isNaN(qtd) || qtd <= 0) {
-      alert("Preencha corretamente todos os campos do produto.");
-      return;
-    }
-    const codigo = document.getElementById("produtoInput").dataset.codigo || "";
-    produtosSelecionados.push({ nome, preco, qtd, codigo });
-    atualizarListaProdutos();
-    document.getElementById("produtoInput").value = "";
-    document.getElementById("precoProduto").value = "";
-    document.getElementById("qtdProduto").value = "";
+function adicionarProduto() {
+  const nome = document.getElementById("produtoInput").value;
+  const preco = parseFloat(document.getElementById("precoProduto").value);
+  const qtd = parseInt(document.getElementById("qtdProduto").value);
+  const codigo = document.getElementById("produtoInput").dataset.codigo || "";
+
+  if (!nome || isNaN(preco) || isNaN(qtd) || qtd <= 0) {
+    alert("Preencha corretamente todos os campos do produto.");
+    return;
   }
+
+  // Busca o produto completo
+  const produtoCompleto = produtosDisponiveis.find(p => p.descricao === nome);
+
+  produtosSelecionados.push({
+    nome,
+    preco,
+    qtd,
+    codigo,
+    cfop: produtoCompleto?.cfop || "",
+    ncm: produtoCompleto?.ncm || "",
+    cest: produtoCompleto?.cest || ""
+  });
+
+  atualizarListaProdutos();
+  document.getElementById("produtoInput").value = "";
+  document.getElementById("precoProduto").value = "";
+  document.getElementById("qtdProduto").value = "";
+}
+
 
   function atualizarListaProdutos() {
     const lista = document.getElementById("listaProdutos");
@@ -211,11 +226,14 @@
         nome: p.nome,
         preco: p.preco,
         qtd: p.qtd,
-        total: (p.preco * p.qtd).toFixed(2)
+        total: (p.preco * p.qtd).toFixed(2),
+		cfop: p.cfop,
+		ncm: p.ncm,
+		cest: p.cest
       }))
     };
 
-    fetch("https://script.google.com/macros/s/AKfycbyCX-kMR9ysNiYCKQ5j_ULKDpYohYFsqnr9IXiG3HhgvQawFBh-e99uBMPMXRQ2vZ7k/exec", {
+    fetch("https://script.google.com/macros/s/AKfycbyXhQLApRqn-5YULXsuUERgB34pRzbC5Ks3nCAUu6Xda39QcTaWz1SMKw6jnxpcez71/exec", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
